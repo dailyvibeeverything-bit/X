@@ -620,7 +620,6 @@ export default function Studio() {
       const s = typeof stateData === 'string' ? JSON.parse(stateData) : stateData;
       Object.assign(state, s);
       state.bgImage = null;
-      // Reload photo if applicable
       if (state.bgPhotoIdx >= 0 && PHOTOS[state.bgPhotoIdx]) {
         loadImg(PHOTOS[state.bgPhotoIdx].url, img => {
           state.bgImage = img;
@@ -651,139 +650,375 @@ export default function Studio() {
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         :root {
           --bg: #0a0a0a; --surface: #111; --surface2: #1a1a1a; --border: #2a2a2a;
           --accent: #c9a84c; --accent2: #e8d5a3; --text: #f0ece4; --muted: #555; --radius: 8px;
+          --header-h: 52px;
         }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        header { display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; height: 50px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+
+        html, body {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          background: var(--bg);
+          color: var(--text);
+          font-family: 'Inter', sans-serif;
+          overflow: hidden;
+        }
+
+        /* ── LAYOUT SHELL ── */
+        .app-shell {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          overflow: hidden;
+        }
+
+        /* ── HEADER ── */
+        header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 1.25rem;
+          height: var(--header-h);
+          border-bottom: 1px solid var(--border);
+          background: var(--surface);
+          flex-shrink: 0;
+          z-index: 30;
+        }
         .logo { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 1rem; letter-spacing: 0.08em; color: var(--accent); }
         .logo span { color: var(--text); }
-        .badge { font-size: 0.6rem; background: var(--accent); color: #000; padding: 2px 9px; border-radius: 20px; font-weight: 700; letter-spacing: 0.12em; }
-        .hdr-actions { display: flex; align-items: center; gap: 0.4rem; }
-        .undo-btn { background: var(--surface2); border: 1px solid var(--border); color: #888; border-radius: 6px; padding: 4px 10px; font-size: 0.72rem; cursor: pointer; transition: all .18s; font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
+        .badge { font-size: 0.58rem; background: var(--accent); color: #000; padding: 2px 8px; border-radius: 20px; font-weight: 700; letter-spacing: 0.12em; }
+        .hdr-actions { display: flex; align-items: center; gap: 0.35rem; flex-wrap: nowrap; }
+        .undo-btn {
+          background: var(--surface2); border: 1px solid var(--border); color: #888;
+          border-radius: 6px; padding: 4px 9px; font-size: 0.7rem; cursor: pointer;
+          transition: all .18s; font-family: 'Inter', sans-serif; letter-spacing: 0.04em;
+          white-space: nowrap;
+        }
         .undo-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-        .undo-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .tpl-btn { background: var(--surface2); border: 1px solid var(--border); color: #aaa; border-radius: 6px; padding: 4px 12px; font-size: 0.72rem; cursor: pointer; transition: all .18s; font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
+        .undo-btn:disabled { opacity: 0.28; cursor: not-allowed; }
+        .tpl-btn {
+          background: var(--surface2); border: 1px solid var(--border); color: #aaa;
+          border-radius: 6px; padding: 4px 10px; font-size: 0.7rem; cursor: pointer;
+          transition: all .18s; font-family: 'Inter', sans-serif; letter-spacing: 0.04em;
+          white-space: nowrap;
+        }
         .tpl-btn:hover { border-color: var(--accent); color: var(--accent); }
         .tpl-btn.accent { background: rgba(201,168,76,0.12); border-color: rgba(201,168,76,0.4); color: var(--accent); }
-        .logout-btn { background: transparent; border: 1px solid #333; color: #555; border-radius: 6px; padding: 4px 10px; font-size: 0.72rem; cursor: pointer; transition: all .18s; font-family: 'Inter', sans-serif; }
+        .logout-btn {
+          background: transparent; border: 1px solid #333; color: #555; border-radius: 6px;
+          padding: 4px 9px; font-size: 0.7rem; cursor: pointer; transition: all .18s;
+          font-family: 'Inter', sans-serif; white-space: nowrap;
+        }
         .logout-btn:hover { border-color: #e86b6b; color: #e86b6b; }
-        main { display: grid; grid-template-columns: 1fr 380px; flex: 1; overflow: hidden; min-height: 0; }
-        .preview-area { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; background: #060606; position: relative; overflow: hidden; }
-        .preview-area::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 40px 40px; opacity: 0.18; pointer-events: none; animation: gPulse 7s ease-in-out infinite; }
-        @keyframes gPulse { 0%,100%{opacity:.12} 50%{opacity:.25} }
-        .preview-label { font-size: 0.58rem; letter-spacing: 0.22em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.85rem; position: relative; z-index: 1; }
-        .canvas-wrap { position: relative; z-index: 1; border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 1px var(--border), 0 32px 80px rgba(0,0,0,.85), 0 0 60px rgba(201,168,76,.05); animation: floatIn .5s cubic-bezier(.16,1,.3,1) both; user-select: none; }
-        @keyframes floatIn { from{opacity:0;transform:translateY(20px) scale(.97)} to{opacity:1;transform:none} }
-        canvas#preview { display: block; height: calc(100vh - 130px); max-height: 680px; width: auto; }
-        .drag-handle { position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--accent); background: rgba(201,168,76,0.22); cursor: grab; transform: translate(-50%,-50%); z-index: 10; transition: background .15s, box-shadow .15s; display: flex; align-items: center; justify-content: center; }
+
+        /* ── MAIN: TWO COLUMNS ── */
+        .studio-body {
+          display: grid;
+          grid-template-columns: 1fr 390px;
+          flex: 1;
+          min-height: 0;       /* critical — lets grid shrink inside flex */
+          overflow: hidden;
+        }
+
+        /* ── LEFT: PREVIEW ── */
+        .preview-area {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          padding: 1rem 1.25rem;
+          background: #060606;
+          overflow: hidden;   /* never let canvas bleed */
+          position: relative;
+          min-width: 0;
+        }
+        .preview-area::before {
+          content: '';
+          position: absolute; inset: 0;
+          background-image:
+            linear-gradient(var(--border) 1px, transparent 1px),
+            linear-gradient(90deg, var(--border) 1px, transparent 1px);
+          background-size: 40px 40px;
+          opacity: 0.15;
+          pointer-events: none;
+          animation: gPulse 7s ease-in-out infinite;
+        }
+        @keyframes gPulse { 0%,100%{opacity:.10} 50%{opacity:.22} }
+
+        .preview-label {
+          font-size: 0.56rem; letter-spacing: 0.2em; color: var(--muted);
+          text-transform: uppercase; position: relative; z-index: 1;
+        }
+
+        /* Canvas wrapper — drives sizing */
+        .canvas-wrap {
+          position: relative;
+          z-index: 1;
+          border-radius: 14px;
+          overflow: hidden;
+          box-shadow: 0 0 0 1px var(--border), 0 24px 60px rgba(0,0,0,.85), 0 0 48px rgba(201,168,76,.05);
+          animation: floatIn .5s cubic-bezier(.16,1,.3,1) both;
+          user-select: none;
+          /* Key: let height drive everything, width follows 9:16 ratio */
+          height: min(calc(100vh - var(--header-h) - 96px), 640px);
+          aspect-ratio: 405 / 720;
+          flex-shrink: 0;
+        }
+        @keyframes floatIn { from{opacity:0;transform:translateY(16px) scale(.97)} to{opacity:1;transform:none} }
+
+        canvas#preview {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+
+        /* Drag handles */
+        .drag-handle {
+          position: absolute; width: 26px; height: 26px; border-radius: 50%;
+          border: 2px solid var(--accent); background: rgba(201,168,76,0.22);
+          cursor: grab; transform: translate(-50%,-50%); z-index: 10;
+          transition: background .15s, box-shadow .15s;
+          display: flex; align-items: center; justify-content: center;
+        }
         .drag-handle:hover { background: rgba(201,168,76,0.5); box-shadow: 0 0 0 5px rgba(201,168,76,.18); }
         .drag-handle:active { cursor: grabbing; background: rgba(201,168,76,0.7); }
         .drag-handle.hidden { display: none; }
         .drag-handle .dh-ico { font-size: 10px; color: var(--accent); pointer-events: none; }
-        .drag-handle .dh-label { font-size: 0.42rem; color: var(--accent); letter-spacing: 0.06em; white-space: nowrap; position: absolute; top: 28px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.8); padding: 2px 6px; border-radius: 3px; pointer-events: none; opacity: 0; transition: opacity .15s; }
+        .drag-handle .dh-label {
+          font-size: 0.4rem; color: var(--accent); letter-spacing: 0.06em;
+          white-space: nowrap; position: absolute; top: 28px; left: 50%;
+          transform: translateX(-50%); background: rgba(0,0,0,.8);
+          padding: 2px 6px; border-radius: 3px; pointer-events: none;
+          opacity: 0; transition: opacity .15s;
+        }
         .drag-handle:hover .dh-label { opacity: 1; }
-        .preview-dims { margin-top: 0.65rem; font-size: 0.58rem; letter-spacing: 0.15em; color: var(--muted); position: relative; z-index: 1; text-transform: uppercase; }
-        .preview-hint { font-size: 0.52rem; color: #333; margin-top: 0.35rem; position: relative; z-index: 1; letter-spacing: 0.05em; text-align: center; }
-        .controls { background: var(--surface); border-left: 1px solid var(--border); padding: 0 0 1rem; overflow-y: auto; display: flex; flex-direction: column; }
-        .controls::-webkit-scrollbar { width: 4px; }
+
+        .preview-meta {
+          display: flex; flex-direction: column; align-items: center; gap: 2px;
+          position: relative; z-index: 1;
+        }
+        .preview-dims { font-size: 0.54rem; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
+        .preview-hint { font-size: 0.48rem; color: #2e2e2e; letter-spacing: 0.04em; text-align: center; }
+
+        /* ── RIGHT: CONTROLS (always scrollable) ── */
+        .controls {
+          background: var(--surface);
+          border-left: 1px solid var(--border);
+          overflow-y: auto;
+          overflow-x: hidden;
+          /* Fill the grid row exactly — no shrink, no grow beyond column */
+          height: 100%;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .controls::-webkit-scrollbar { width: 3px; }
         .controls::-webkit-scrollbar-track { background: transparent; }
-        .controls::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-        .sec { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+        .controls::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+        .controls::-webkit-scrollbar-thumb:hover { background: #444; }
+
+        /* ── SECTION STYLES ── */
+        .sec { padding: 0.9rem 1.15rem; border-bottom: 1px solid var(--border); }
         .sec:last-child { border-bottom: none; }
-        .sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
-        .sec-label { font-size: 0.6rem; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; font-weight: 600; }
-        .sec-note { font-size: 0.55rem; color: #444; margin-left: 6px; letter-spacing: 0.05em; }
+        .sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.7rem; }
+        .sec-label { font-size: 0.58rem; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; font-weight: 600; }
+        .sec-note { font-size: 0.52rem; color: #3a3a3a; margin-left: 5px; letter-spacing: 0.04em; }
         .text-body { display: flex; flex-direction: column; gap: 0; }
         .text-body.disabled { opacity: 0.3; pointer-events: none; }
-        .fg { margin-top: 0.6rem; }
+        .fg { margin-top: 0.55rem; }
         .fg:first-child { margin-top: 0; }
-        label.lbl { display: block; font-size: 0.7rem; color: #777; margin-bottom: 0.25rem; font-weight: 400; }
-        textarea, input[type="text"] { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.86rem; padding: 0.55rem 0.75rem; resize: none; transition: border-color .2s; outline: none; }
-        textarea { min-height: 66px; line-height: 1.5; }
+        label.lbl { display: block; font-size: 0.68rem; color: #777; margin-bottom: 0.22rem; font-weight: 400; }
+        textarea, input[type="text"] {
+          width: 100%; background: var(--surface2); border: 1px solid var(--border);
+          border-radius: var(--radius); color: var(--text); font-family: 'Inter', sans-serif;
+          font-size: 0.84rem; padding: 0.5rem 0.7rem; resize: none;
+          transition: border-color .2s; outline: none;
+        }
+        textarea { min-height: 60px; line-height: 1.5; }
         textarea:focus, input[type="text"]:focus { border-color: var(--accent); }
-        .row2 { display: flex; gap: 0.5rem; }
-        .row2 > * { flex: 1; }
-        select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.8rem; padding: 0.5rem 0.7rem; outline: none; cursor: pointer; transition: border-color .2s; }
+        .row2 { display: flex; gap: 0.45rem; }
+        .row2 > * { flex: 1; min-width: 0; }
+        select {
+          width: 100%; background: var(--surface2); border: 1px solid var(--border);
+          border-radius: var(--radius); color: var(--text); font-family: 'Inter', sans-serif;
+          font-size: 0.78rem; padding: 0.45rem 0.65rem; outline: none; cursor: pointer;
+          transition: border-color .2s;
+        }
         select:focus { border-color: var(--accent); }
         input[type="range"] { width: 100%; accent-color: var(--accent); height: 4px; cursor: pointer; }
-        .range-row { display: flex; align-items: center; gap: 0.5rem; }
+        .range-row { display: flex; align-items: center; gap: 0.45rem; }
         .range-row input { flex: 1; }
-        .rval { font-size: 0.75rem; color: var(--accent); min-width: 38px; text-align: right; font-weight: 600; }
-        .color-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
-        .cdot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all .18s; flex-shrink: 0; }
+        .rval { font-size: 0.72rem; color: var(--accent); min-width: 34px; text-align: right; font-weight: 600; }
+        .color-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+        .cdot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all .18s; flex-shrink: 0; }
         .cdot:hover { transform: scale(1.12); }
         .cdot.active { border-color: var(--accent); transform: scale(1.18); }
-        input[type="color"] { width: 30px; height: 22px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; border-radius: 5px; padding: 0 2px; flex-shrink: 0; }
+        input[type="color"] { width: 28px; height: 20px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; border-radius: 4px; padding: 0 2px; flex-shrink: 0; }
         .align-grp { display: flex; gap: 3px; }
-        .abtn { flex: 1; padding: 0.3rem 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; color: #666; cursor: pointer; font-size: 0.7rem; transition: all .18s; font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
+        .abtn {
+          flex: 1; padding: 0.28rem 0; background: var(--surface2); border: 1px solid var(--border);
+          border-radius: 5px; color: #666; cursor: pointer; font-size: 0.68rem;
+          transition: all .18s; font-family: 'Inter', sans-serif; letter-spacing: 0.04em;
+        }
         .abtn:hover { border-color: #555; color: #bbb; }
         .abtn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
-        .tog { width: 32px; height: 17px; background: var(--surface2); border-radius: 9px; border: 1px solid var(--border); cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }
+        .tog {
+          width: 30px; height: 16px; background: var(--surface2); border-radius: 8px;
+          border: 1px solid var(--border); cursor: pointer; position: relative;
+          transition: background .2s; flex-shrink: 0;
+        }
         .tog.on { background: var(--accent); border-color: var(--accent); }
-        .tog::after { content: ''; position: absolute; width: 11px; height: 11px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: transform .2s; }
-        .tog.on::after { transform: translateX(15px); }
-        .tog-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.55rem; }
+        .tog::after {
+          content: ''; position: absolute; width: 10px; height: 10px; background: #fff;
+          border-radius: 50%; top: 2px; left: 2px; transition: transform .2s;
+        }
+        .tog.on::after { transform: translateX(14px); }
+        .tog-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
         .tog-row:last-child { margin-bottom: 0; }
-        .tog-lbl { font-size: 0.78rem; color: #999; }
-        .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
-        .swatch { height: 38px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: all .18s; }
+        .tog-lbl { font-size: 0.76rem; color: #999; }
+        .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+        .swatch { height: 34px; border-radius: 5px; cursor: pointer; border: 2px solid transparent; transition: all .18s; }
         .swatch:hover { transform: scale(1.06); }
         .swatch.active { border-color: var(--accent); }
-        .bg-photos { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 0.65rem; }
-        .bgp { aspect-ratio: 9/16; border-radius: 5px; cursor: pointer; border: 2px solid transparent; overflow: hidden; background: var(--surface2); transition: all .18s; position: relative; }
+        .bg-photos { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 0.55rem; }
+        .bgp { aspect-ratio: 9/16; border-radius: 4px; cursor: pointer; border: 2px solid transparent; overflow: hidden; background: var(--surface2); transition: all .18s; position: relative; }
         .bgp:hover { transform: scale(1.06); }
         .bgp.active { border-color: var(--accent); }
         .bgp img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .bgp-lbl { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.7); font-size: 0.42rem; color: #bbb; text-align: center; padding: 1px 0; letter-spacing: .04em; }
-        .upload-btn { display: block; width: 100%; padding: 0.45rem; background: var(--surface2); border: 1px dashed #333; border-radius: var(--radius); color: #666; cursor: pointer; font-size: 0.74rem; text-align: center; margin-top: 0.45rem; transition: all .2s; font-family: 'Inter', sans-serif; }
+        .bgp-lbl { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.7); font-size: 0.38rem; color: #bbb; text-align: center; padding: 1px 0; letter-spacing: .04em; }
+        .upload-btn {
+          display: block; width: 100%; padding: 0.4rem; background: var(--surface2);
+          border: 1px dashed #2e2e2e; border-radius: var(--radius); color: #555;
+          cursor: pointer; font-size: 0.7rem; text-align: center; margin-top: 0.4rem;
+          transition: all .2s; font-family: 'Inter', sans-serif;
+        }
         .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
-        .btn-dl { width: 100%; padding: 0.8rem; background: var(--accent); color: #000; border: none; border-radius: var(--radius); font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 0.86rem; letter-spacing: 0.1em; cursor: pointer; transition: all .2s; text-transform: uppercase; }
+        .btn-dl {
+          width: 100%; padding: 0.75rem; background: var(--accent); color: #000; border: none;
+          border-radius: var(--radius); font-family: 'Bricolage Grotesque', sans-serif;
+          font-weight: 700; font-size: 0.84rem; letter-spacing: 0.1em; cursor: pointer;
+          transition: all .2s; text-transform: uppercase;
+        }
         .btn-dl:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(201,168,76,.3); }
-        .bgp .loader { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); font-size: 0.5rem; color: var(--accent); letter-spacing: .08em; }
+        .bgp .loader { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); font-size: 0.45rem; color: var(--accent); letter-spacing: .08em; }
         .blur-row { display: none; }
         .blur-row.visible { display: block; }
-        .curve-controls { display: none; margin-top: 0.4rem; }
+        .curve-controls { display: none; margin-top: 0.35rem; }
         .curve-controls.visible { display: block; }
-        .curve-hint { font-size: 0.6rem; color: #555; letter-spacing: 0.05em; margin-top: 0.2rem; display: none; }
+        .curve-hint { font-size: 0.58rem; color: #555; letter-spacing: 0.05em; margin-top: 0.15rem; display: none; }
         .curve-hint.visible { display: block; }
 
-        /* MODAL */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-        .modal { background: #111; border: 1px solid #2a2a2a; border-radius: 14px; padding: 1.75rem; width: 100%; max-width: 480px; max-height: 80vh; overflow-y: auto; box-shadow: 0 32px 80px rgba(0,0,0,.9); }
-        .modal h2 { font-family: 'Bricolage Grotesque', sans-serif; font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 1.25rem; }
-        .modal input[type="text"] { width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.9rem; padding: 0.65rem 0.9rem; outline: none; transition: border-color .2s; margin-bottom: 0.9rem; }
+        /* ── MODALS ── */
+        .modal-overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 100;
+          display: flex; align-items: center; justify-content: center;
+          backdrop-filter: blur(4px); padding: 1rem;
+        }
+        .modal {
+          background: #111; border: 1px solid #2a2a2a; border-radius: 14px;
+          padding: 1.5rem; width: 100%; max-width: 460px; max-height: 80vh;
+          overflow-y: auto; box-shadow: 0 32px 80px rgba(0,0,0,.9);
+        }
+        .modal h2 { font-family: 'Bricolage Grotesque', sans-serif; font-size: 0.95rem; font-weight: 800; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 1rem; }
+        .modal input[type="text"] {
+          width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a;
+          border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif;
+          font-size: 0.88rem; padding: 0.6rem 0.85rem; outline: none;
+          transition: border-color .2s; margin-bottom: 0.8rem;
+        }
         .modal input[type="text"]:focus { border-color: var(--accent); }
-        .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
-        .modal-btn { padding: 0.55rem 1.2rem; border-radius: 7px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.08em; cursor: pointer; transition: all .18s; border: none; text-transform: uppercase; }
+        .modal-actions { display: flex; gap: 0.45rem; justify-content: flex-end; }
+        .modal-btn {
+          padding: 0.5rem 1.1rem; border-radius: 7px; font-family: 'Bricolage Grotesque', sans-serif;
+          font-weight: 700; font-size: 0.78rem; letter-spacing: 0.08em;
+          cursor: pointer; transition: all .18s; border: none; text-transform: uppercase;
+        }
         .modal-btn.primary { background: var(--accent); color: #000; }
         .modal-btn.primary:hover { background: var(--accent2); }
         .modal-btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
         .modal-btn.secondary { background: var(--surface2); border: 1px solid var(--border); color: #888; }
         .modal-btn.secondary:hover { border-color: #555; color: #ccc; }
-        .tpl-grid { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
-        .tpl-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer; transition: all .18s; display: flex; align-items: center; justify-content: space-between; }
+        .tpl-grid { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 0.9rem; }
+        .tpl-card {
+          background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+          padding: 0.65rem 0.9rem; cursor: pointer; transition: all .18s;
+          display: flex; align-items: center; justify-content: space-between;
+        }
         .tpl-card:hover { border-color: var(--accent); background: rgba(201,168,76,0.05); }
-        .tpl-card-name { font-size: 0.88rem; color: var(--text); font-weight: 600; }
-        .tpl-card-date { font-size: 0.62rem; color: #555; margin-top: 2px; }
-        .tpl-del { background: transparent; border: 1px solid #333; color: #555; border-radius: 5px; padding: 3px 8px; font-size: 0.65rem; cursor: pointer; transition: all .15s; flex-shrink: 0; }
+        .tpl-card-name { font-size: 0.86rem; color: var(--text); font-weight: 600; }
+        .tpl-card-date { font-size: 0.6rem; color: #555; margin-top: 2px; }
+        .tpl-del { background: transparent; border: 1px solid #333; color: #555; border-radius: 5px; padding: 3px 7px; font-size: 0.62rem; cursor: pointer; transition: all .15s; flex-shrink: 0; }
         .tpl-del:hover { border-color: #e86b6b; color: #e86b6b; }
-        .tpl-empty { text-align: center; color: #444; font-size: 0.8rem; padding: 2rem 0; }
-        .tpl-loading { text-align: center; color: #555; font-size: 0.75rem; padding: 1.5rem 0; letter-spacing: 0.08em; }
+        .tpl-empty { text-align: center; color: #444; font-size: 0.78rem; padding: 1.75rem 0; }
+        .tpl-loading { text-align: center; color: #555; font-size: 0.72rem; padding: 1.25rem 0; letter-spacing: 0.08em; }
 
-        @media (max-width: 860px) {
-          body { height: auto; overflow-y: auto; overflow-x: hidden; }
-          main { grid-template-columns: 1fr; height: auto; overflow: visible; }
-          .preview-area { min-height: 60vw; padding: 1rem 0.75rem; position: sticky; top: 50px; z-index: 20; background: #060606; }
-          canvas#preview { height: auto; max-height: none; width: min(230px, 60vw); }
-          .canvas-wrap { border-radius: 10px; }
-          .controls { height: auto; overflow-y: visible; border-left: none; border-top: 1px solid var(--border); }
-          .preview-label, .preview-dims, .preview-hint { font-size: 0.5rem; }
+        /* ── MOBILE (≤ 768px) ── */
+        @media (max-width: 768px) {
+          html, body { overflow: auto; height: auto; }
+
+          .app-shell { height: auto; overflow: visible; }
+
+          .studio-body {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto 1fr;
+            height: auto;
+            overflow: visible;
+          }
+
+          /* Sticky preview at top */
+          .preview-area {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: #060606;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            flex-direction: row;           /* row: label | canvas | meta */
+            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
+          }
+          .preview-label { writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 0.15em; font-size: 0.45rem; flex-shrink: 0; }
+          .canvas-wrap {
+            height: auto;
+            width: min(180px, 48vw);
+            aspect-ratio: 405 / 720;
+            border-radius: 10px;
+            flex-shrink: 0;
+          }
+          .preview-meta { align-items: flex-start; gap: 1px; }
+          .preview-dims { font-size: 0.48rem; }
+          .preview-hint { font-size: 0.42rem; color: #2a2a2a; text-align: left; }
+
+          /* Controls: natural scroll with page */
+          .controls {
+            height: auto;
+            overflow-y: visible;
+            overflow-x: visible;
+            border-left: none;
+            border-top: 1px solid var(--border);
+          }
+
+          header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+          }
+          .badge { display: none; }
+          .undo-btn, .tpl-btn, .logout-btn { padding: 3px 7px; font-size: 0.65rem; }
+          .hdr-actions { gap: 0.25rem; }
           .drag-handle { display: none; }
-          header { padding: 0 1rem; }
-          .undo-btn { padding: 3px 7px; font-size: 0.66rem; }
-          .tpl-btn { padding: 3px 7px; font-size: 0.66rem; }
+        }
+
+        /* ── TABLET (769px – 1100px) ── */
+        @media (min-width: 769px) and (max-width: 1100px) {
+          .studio-body { grid-template-columns: 1fr 340px; }
+          .canvas-wrap { height: min(calc(100vh - var(--header-h) - 80px), 560px); }
         }
       `}</style>
 
@@ -800,7 +1035,7 @@ export default function Studio() {
               onKeyDown={e => e.key === 'Enter' && saveTemplate()}
               autoFocus
             />
-            {tplMsg && <div style={{color:'#7ecf8e',fontSize:'0.75rem',marginBottom:'0.75rem'}}>{tplMsg}</div>}
+            {tplMsg && <div style={{color:'#7ecf8e',fontSize:'0.72rem',marginBottom:'0.65rem'}}>{tplMsg}</div>}
             <div className="modal-actions">
               <button className="modal-btn secondary" onClick={() => setShowSaveModal(false)}>Cancel</button>
               <button className="modal-btn primary" onClick={saveTemplate} disabled={saving || !templateName.trim()}>
@@ -819,7 +1054,7 @@ export default function Studio() {
             {loadingTpls ? (
               <div className="tpl-loading">LOADING TEMPLATES…</div>
             ) : templates.length === 0 ? (
-              <div className="tpl-empty">No saved templates yet. Create one with ↙ Save.</div>
+              <div className="tpl-empty">No saved templates yet. Create one with Save.</div>
             ) : (
               <div className="tpl-grid">
                 {templates.map(t => (
@@ -828,7 +1063,7 @@ export default function Studio() {
                       <div className="tpl-card-name">{t.name}</div>
                       <div className="tpl-card-date">{new Date(t.created_at).toLocaleString()}</div>
                     </div>
-                    <button className="tpl-del" onClick={e => deleteTemplate(t.id, e)}>✕ Delete</button>
+                    <button className="tpl-del" onClick={e => deleteTemplate(t.id, e)}>✕</button>
                   </div>
                 ))}
               </div>
@@ -840,274 +1075,280 @@ export default function Studio() {
         </div>
       )}
 
-      <header>
-        <div className="logo">REEL <span>COVER</span></div>
-        <div className="hdr-actions">
-          <button className="undo-btn" id="undoBtn" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
-          <button className="undo-btn" id="redoBtn" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
-          <button className="tpl-btn accent" onClick={() => setShowSaveModal(true)}>💾 Save</button>
-          <button className="tpl-btn" onClick={openLoadModal}>📂 Templates</button>
-          <button className="logout-btn" onClick={logout}>Logout</button>
-          <span className="badge">STUDIO</span>
-        </div>
-      </header>
-
-      <main>
-        <div className="preview-area">
-          <p className="preview-label">Live Preview — 9:16 Reel Format</p>
-          <div className="canvas-wrap" id="canvasWrap">
-            <canvas id="preview" width="405" height="720"></canvas>
-            <div className="drag-handle hidden" id="dhHook" data-layer="hook"><span className="dh-ico">✥</span><span className="dh-label">HOOK — drag</span></div>
-            <div className="drag-handle hidden" id="dhMid"  data-layer="mid"><span className="dh-ico">✥</span><span className="dh-label">BODY — drag</span></div>
-            <div className="drag-handle hidden" id="dhSub"  data-layer="sub"><span className="dh-ico">✥</span><span className="dh-label">SUB — drag</span></div>
+      <div className="app-shell">
+        <header>
+          <div className="logo">REEL <span>COVER</span></div>
+          <div className="hdr-actions">
+            <button className="undo-btn" id="undoBtn" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+            <button className="undo-btn" id="redoBtn" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+            <button className="tpl-btn accent" onClick={() => setShowSaveModal(true)}>💾 Save</button>
+            <button className="tpl-btn" onClick={openLoadModal}>📂 Templates</button>
+            <button className="logout-btn" onClick={logout}>Logout</button>
+            <span className="badge">STUDIO</span>
           </div>
-          <p className="preview-dims">1080 × 1920 px · Instagram / TikTok Reel</p>
-          <p className="preview-hint">Drag ✥ handles to reposition text · Double-click handle to reset</p>
-        </div>
+        </header>
 
-        <div className="controls">
-
-          {/* HANDLE */}
-          <div className="sec">
-            <div className="sec-head"><p className="sec-label">Handle</p></div>
-            <input type="text" id="handleText" defaultValue="@jimoDemo" placeholder="@yourhandle" />
-            <div className="fg">
-              <label className="lbl">Handle Color</label>
-              <div className="color-row" id="handleColors">
-                <div className="cdot active" style={{background:'#c9a84c'}} data-color="#c9a84c"></div>
-                <div className="cdot" style={{background:'#fff'}} data-color="#ffffff"></div>
-                <div className="cdot" style={{background:'#aaa'}} data-color="#aaaaaa"></div>
-                <div className="cdot" style={{background:'#f5c6c6'}} data-color="#f5c6c6"></div>
-                <div className="cdot" style={{background:'#a8d8ea'}} data-color="#a8d8ea"></div>
-                <div className="cdot" style={{background:'#b5e8c8'}} data-color="#b5e8c8"></div>
-                <div className="cdot" style={{background:'#ffeb3b'}} data-color="#ffeb3b"></div>
-                <div className="cdot" style={{background:'#ff6b6b'}} data-color="#ff6b6b"></div>
-                <div className="cdot" style={{background:'#000'}} data-color="#000000"></div>
-                <input type="color" id="handleColorCustom" defaultValue="#c9a84c" title="Custom color" />
-              </div>
+        <div className="studio-body">
+          {/* ── PREVIEW ── */}
+          <div className="preview-area">
+            <p className="preview-label">Live Preview · 9:16</p>
+            <div className="canvas-wrap" id="canvasWrap">
+              <canvas id="preview" width="405" height="720"></canvas>
+              <div className="drag-handle hidden" id="dhHook" data-layer="hook"><span className="dh-ico">✥</span><span className="dh-label">HOOK — drag</span></div>
+              <div className="drag-handle hidden" id="dhMid"  data-layer="mid"><span className="dh-ico">✥</span><span className="dh-label">BODY — drag</span></div>
+              <div className="drag-handle hidden" id="dhSub"  data-layer="sub"><span className="dh-ico">✥</span><span className="dh-label">SUB — drag</span></div>
+            </div>
+            <div className="preview-meta">
+              <p className="preview-dims">1080 × 1920 px</p>
+              <p className="preview-hint">Drag ✥ to move · Dbl-click to reset</p>
             </div>
           </div>
 
-          {/* HOOK LINE */}
-          <div className="sec">
-            <div className="sec-head">
-              <p className="sec-label">Hook Line <span className="sec-note">BIGGEST TEXT</span></p>
-              <div className="tog on" id="togHook"></div>
-            </div>
-            <div className="text-body" id="hookBody">
-              <div className="fg"><textarea id="hookText" placeholder="Your attention-grabbing headline...">This changes everything.</textarea></div>
-              <div className="fg"><label className="lbl">Font</label><select id="hookFont"></select></div>
-              <div className="row2 fg">
-                <div>
-                  <label className="lbl">Size</label>
-                  <div className="range-row"><input type="range" id="hookSize" min="40" max="130" defaultValue="88" /><span className="rval" id="hookSizeVal">88</span></div>
-                </div>
-                <div>
-                  <label className="lbl">Style</label>
-                  <select id="hookStyle"><option value="normal">Normal</option><option value="italic" defaultValue>Italic</option></select>
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">Alignment</label>
-                <div className="align-grp" id="hookAlignGroup">
-                  <button className="abtn active" data-align="left">Left</button>
-                  <button className="abtn" data-align="center">Center</button>
-                  <button className="abtn" data-align="right">Right</button>
-                </div>
-              </div>
+          {/* ── CONTROLS (scrollable) ── */}
+          <div className="controls">
+
+            {/* HANDLE */}
+            <div className="sec">
+              <div className="sec-head"><p className="sec-label">Handle</p></div>
+              <input type="text" id="handleText" defaultValue="@jimoDemo" placeholder="@yourhandle" />
               <div className="fg">
                 <label className="lbl">Color</label>
-                <div className="color-row" id="hookColors">
-                  <div className="cdot active" style={{background:'#fff'}} data-color="#ffffff"></div>
-                  <div className="cdot" style={{background:'#c9a84c'}} data-color="#c9a84c"></div>
-                  <div className="cdot" style={{background:'#f5c6c6'}} data-color="#f5c6c6"></div>
-                  <div className="cdot" style={{background:'#a8d8ea'}} data-color="#a8d8ea"></div>
-                  <div className="cdot" style={{background:'#b5e8c8'}} data-color="#b5e8c8"></div>
-                  <div className="cdot" style={{background:'#e8c4f0'}} data-color="#e8c4f0"></div>
-                  <div className="cdot" style={{background:'#ffeb3b'}} data-color="#ffeb3b"></div>
-                  <div className="cdot" style={{background:'#ff6b6b'}} data-color="#ff6b6b"></div>
-                  <div className="cdot" style={{background:'#000'}} data-color="#000000"></div>
-                  <input type="color" id="hookColorCustom" defaultValue="#ffffff" title="Custom color" />
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">Opacity: <span id="hookOpacityVal">100</span>%</label>
-                <input type="range" id="hookOpacity" min="0" max="100" defaultValue="100" />
-              </div>
-              <div className="fg">
-                <label className="lbl">Rotation: <span id="hookRotationVal">0</span>°</label>
-                <input type="range" id="hookRotation" min="-30" max="30" defaultValue="0" />
-              </div>
-              <div className="fg">
-                <div className="tog-row" style={{marginBottom:'0.3rem'}}>
-                  <span className="tog-lbl" style={{fontSize:'0.72rem'}}>Curved Text Arc</span>
-                  <div className="tog" id="togHookCurve"></div>
-                </div>
-                <p className="curve-hint" id="hookCurveHint">Lower radius = tighter curve. Best with single-line hook.</p>
-                <div className="curve-controls" id="hookCurveControls">
-                  <label className="lbl">Arc Radius: <span id="hookCurveRadVal">600</span></label>
-                  <input type="range" id="hookCurveRad" min="150" max="1200" defaultValue="600" />
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">Vertical Position: <span id="hookPosVal">40</span>%</label>
-                <input type="range" id="hookPos" min="5" max="90" defaultValue="40" />
-              </div>
-            </div>
-          </div>
-
-          {/* MID TEXT */}
-          <div className="sec">
-            <div className="sec-head">
-              <p className="sec-label">Body Text <span className="sec-note">MEDIUM SIZE</span></p>
-              <div className="tog" id="togMid"></div>
-            </div>
-            <div className="text-body disabled" id="midBody">
-              <div className="fg"><input type="text" id="midText" defaultValue="Here is why you need to see this →" placeholder="Body / mid text..." /></div>
-              <div className="fg"><label className="lbl">Font</label><select id="midFont"></select></div>
-              <div className="row2 fg">
-                <div>
-                  <label className="lbl">Size</label>
-                  <div className="range-row"><input type="range" id="midSize" min="16" max="72" defaultValue="30" /><span className="rval" id="midSizeVal">30</span></div>
-                </div>
-                <div>
-                  <label className="lbl">Style</label>
-                  <select id="midStyle"><option value="normal" defaultValue>Normal</option><option value="italic">Italic</option></select>
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">Alignment</label>
-                <div className="align-grp" id="midAlignGroup">
-                  <button className="abtn active" data-align="left">Left</button>
-                  <button className="abtn" data-align="center">Center</button>
-                  <button className="abtn" data-align="right">Right</button>
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">Color</label>
-                <div className="color-row" id="midColors">
+                <div className="color-row" id="handleColors">
+                  <div className="cdot active" style={{background:'#c9a84c'}} data-color="#c9a84c"></div>
                   <div className="cdot" style={{background:'#fff'}} data-color="#ffffff"></div>
-                  <div className="cdot active" style={{background:'#e0e0e0'}} data-color="#e0e0e0"></div>
-                  <div className="cdot" style={{background:'#c9a84c'}} data-color="#c9a84c"></div>
-                  <div className="cdot" style={{background:'#f5c6c6'}} data-color="#f5c6c6"></div>
-                  <div className="cdot" style={{background:'#a8d8ea'}} data-color="#a8d8ea"></div>
-                  <div className="cdot" style={{background:'#b5e8c8'}} data-color="#b5e8c8"></div>
-                  <div className="cdot" style={{background:'#ffeb3b'}} data-color="#ffeb3b"></div>
-                  <div className="cdot" style={{background:'#ff6b6b'}} data-color="#ff6b6b"></div>
-                  <div className="cdot" style={{background:'#000'}} data-color="#000000"></div>
-                  <input type="color" id="midColorCustom" defaultValue="#e0e0e0" title="Custom color" />
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">Rotation: <span id="midRotationVal">0</span>°</label>
-                <input type="range" id="midRotation" min="-30" max="30" defaultValue="0" />
-              </div>
-              <div className="fg">
-                <label className="lbl">Vertical Position: <span id="midPosVal">58</span>%</label>
-                <input type="range" id="midPos" min="5" max="90" defaultValue="58" />
-              </div>
-            </div>
-          </div>
-
-          {/* SUPPORTING LINE */}
-          <div className="sec">
-            <div className="sec-head">
-              <p className="sec-label">Supporting Line <span className="sec-note">SMALLEST TEXT</span></p>
-              <div className="tog on" id="togSub"></div>
-            </div>
-            <div className="text-body" id="subBody">
-              <div className="fg"><input type="text" id="subText" defaultValue="You need to see this." placeholder="Supporting / caption line..." /></div>
-              <div className="fg"><label className="lbl">Font</label><select id="subFont"></select></div>
-              <div className="row2 fg">
-                <div>
-                  <label className="lbl">Size</label>
-                  <div className="range-row"><input type="range" id="subSize" min="8" max="36" defaultValue="15" /><span className="rval" id="subSizeVal">15</span></div>
-                </div>
-                <div>
-                  <label className="lbl">Style</label>
-                  <select id="subStyle"><option value="normal" defaultValue>Normal</option><option value="italic">Italic</option></select>
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">Alignment</label>
-                <div className="align-grp" id="subAlignGroup">
-                  <button className="abtn active" data-align="left">Left</button>
-                  <button className="abtn" data-align="center">Center</button>
-                  <button className="abtn" data-align="right">Right</button>
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">Color</label>
-                <div className="color-row" id="subColors">
-                  <div className="cdot" style={{background:'#fff'}} data-color="#ffffff"></div>
-                  <div className="cdot" style={{background:'#c9a84c'}} data-color="#c9a84c"></div>
                   <div className="cdot" style={{background:'#aaa'}} data-color="#aaaaaa"></div>
-                  <div className="cdot active" style={{background:'rgba(255,255,255,0.5)',border:'1px solid #555'}} data-color="rgba(255,255,255,0.5)"></div>
                   <div className="cdot" style={{background:'#f5c6c6'}} data-color="#f5c6c6"></div>
                   <div className="cdot" style={{background:'#a8d8ea'}} data-color="#a8d8ea"></div>
+                  <div className="cdot" style={{background:'#b5e8c8'}} data-color="#b5e8c8"></div>
                   <div className="cdot" style={{background:'#ffeb3b'}} data-color="#ffeb3b"></div>
                   <div className="cdot" style={{background:'#ff6b6b'}} data-color="#ff6b6b"></div>
                   <div className="cdot" style={{background:'#000'}} data-color="#000000"></div>
-                  <input type="color" id="subColorCustom" defaultValue="#ffffff" title="Custom color" />
+                  <input type="color" id="handleColorCustom" defaultValue="#c9a84c" title="Custom color" />
                 </div>
               </div>
-              <div className="fg">
-                <label className="lbl">Rotation: <span id="subRotationVal">0</span>°</label>
-                <input type="range" id="subRotation" min="-30" max="30" defaultValue="0" />
+            </div>
+
+            {/* HOOK LINE */}
+            <div className="sec">
+              <div className="sec-head">
+                <p className="sec-label">Hook Line <span className="sec-note">BIGGEST TEXT</span></p>
+                <div className="tog on" id="togHook"></div>
               </div>
-              <div className="fg">
-                <label className="lbl">Vertical Position: <span id="subPosVal">68</span>%</label>
-                <input type="range" id="subPos" min="5" max="90" defaultValue="68" />
+              <div className="text-body" id="hookBody">
+                <div className="fg"><textarea id="hookText" placeholder="Your attention-grabbing headline...">This changes everything.</textarea></div>
+                <div className="fg"><label className="lbl">Font</label><select id="hookFont"></select></div>
+                <div className="row2 fg">
+                  <div>
+                    <label className="lbl">Size</label>
+                    <div className="range-row"><input type="range" id="hookSize" min="40" max="130" defaultValue="88" /><span className="rval" id="hookSizeVal">88</span></div>
+                  </div>
+                  <div>
+                    <label className="lbl">Style</label>
+                    <select id="hookStyle"><option value="normal">Normal</option><option value="italic" defaultValue>Italic</option></select>
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Alignment</label>
+                  <div className="align-grp" id="hookAlignGroup">
+                    <button className="abtn active" data-align="left">Left</button>
+                    <button className="abtn" data-align="center">Center</button>
+                    <button className="abtn" data-align="right">Right</button>
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Color</label>
+                  <div className="color-row" id="hookColors">
+                    <div className="cdot active" style={{background:'#fff'}} data-color="#ffffff"></div>
+                    <div className="cdot" style={{background:'#c9a84c'}} data-color="#c9a84c"></div>
+                    <div className="cdot" style={{background:'#f5c6c6'}} data-color="#f5c6c6"></div>
+                    <div className="cdot" style={{background:'#a8d8ea'}} data-color="#a8d8ea"></div>
+                    <div className="cdot" style={{background:'#b5e8c8'}} data-color="#b5e8c8"></div>
+                    <div className="cdot" style={{background:'#e8c4f0'}} data-color="#e8c4f0"></div>
+                    <div className="cdot" style={{background:'#ffeb3b'}} data-color="#ffeb3b"></div>
+                    <div className="cdot" style={{background:'#ff6b6b'}} data-color="#ff6b6b"></div>
+                    <div className="cdot" style={{background:'#000'}} data-color="#000000"></div>
+                    <input type="color" id="hookColorCustom" defaultValue="#ffffff" title="Custom color" />
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Opacity: <span id="hookOpacityVal">100</span>%</label>
+                  <input type="range" id="hookOpacity" min="0" max="100" defaultValue="100" />
+                </div>
+                <div className="fg">
+                  <label className="lbl">Rotation: <span id="hookRotationVal">0</span>°</label>
+                  <input type="range" id="hookRotation" min="-30" max="30" defaultValue="0" />
+                </div>
+                <div className="fg">
+                  <div className="tog-row" style={{marginBottom:'0.25rem'}}>
+                    <span className="tog-lbl" style={{fontSize:'0.7rem'}}>Curved Text Arc</span>
+                    <div className="tog" id="togHookCurve"></div>
+                  </div>
+                  <p className="curve-hint" id="hookCurveHint">Lower radius = tighter curve. Best with single-line hook.</p>
+                  <div className="curve-controls" id="hookCurveControls">
+                    <label className="lbl">Arc Radius: <span id="hookCurveRadVal">600</span></label>
+                    <input type="range" id="hookCurveRad" min="150" max="1200" defaultValue="600" />
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Vertical Position: <span id="hookPosVal">40</span>%</label>
+                  <input type="range" id="hookPos" min="5" max="90" defaultValue="40" />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* BACKGROUND */}
-          <div className="sec">
-            <div className="sec-head"><p className="sec-label">Background</p></div>
-            <label className="lbl">Gradient Preset <span style={{color:'#444',fontSize:'0.6rem'}}>(controls glow accent color)</span></label>
-            <div className="swatches" id="bgSwatches">
-              <div className="swatch active" data-bg="0" style={{background:'linear-gradient(160deg,#0a0a0a,#1a1200,#0d0d0d)'}}></div>
-              <div className="swatch" data-bg="1" style={{background:'linear-gradient(160deg,#0d0620,#1e0a3c,#080415)'}}></div>
-              <div className="swatch" data-bg="2" style={{background:'linear-gradient(160deg,#001a14,#003828,#000e0a)'}}></div>
-              <div className="swatch" data-bg="3" style={{background:'linear-gradient(160deg,#1a0000,#3d0808,#0d0000)'}}></div>
-              <div className="swatch" data-bg="4" style={{background:'linear-gradient(160deg,#0d0d1a,#1a1a3d,#080812)'}}></div>
-              <div className="swatch" data-bg="5" style={{background:'linear-gradient(160deg,#1a100a,#3d2005,#120a00)'}}></div>
-              <div className="swatch" data-bg="6" style={{background:'linear-gradient(160deg,#111,#2a2a2a)'}}></div>
-              <div className="swatch" data-bg="7" style={{background:'linear-gradient(160deg,#050518,#0a0a30,#030310)'}}></div>
-            </div>
-            <label className="lbl" style={{marginTop:'0.75rem'}}>Photo Backgrounds <span style={{color:'#444',fontSize:'0.6rem'}}>(click again to remove)</span></label>
-            <div className="bg-photos" id="bgPhotos"></div>
-            <label className="upload-btn" htmlFor="uploadBg">＋ Upload Your Own Image</label>
-            <input type="file" id="uploadBg" accept="image/*" style={{display:'none'}} />
-            <div className="fg blur-row" id="bgBlurRow">
-              <label className="lbl">Background Blur: <span id="bgBlurVal">0</span>px</label>
-              <input type="range" id="bgBlurSlider" min="0" max="30" defaultValue="0" />
-            </div>
-            <div className="fg" style={{marginTop:'0.75rem'}}>
-              <label className="lbl">Accent Glow Intensity</label>
-              <div className="range-row">
-                <input type="range" id="glowSlider" min="0" max="100" defaultValue="60" />
-                <span className="rval" id="glowVal">60</span>
+            {/* MID TEXT */}
+            <div className="sec">
+              <div className="sec-head">
+                <p className="sec-label">Body Text <span className="sec-note">MEDIUM</span></p>
+                <div className="tog" id="togMid"></div>
+              </div>
+              <div className="text-body disabled" id="midBody">
+                <div className="fg"><input type="text" id="midText" defaultValue="Here is why you need to see this →" placeholder="Body / mid text..." /></div>
+                <div className="fg"><label className="lbl">Font</label><select id="midFont"></select></div>
+                <div className="row2 fg">
+                  <div>
+                    <label className="lbl">Size</label>
+                    <div className="range-row"><input type="range" id="midSize" min="16" max="72" defaultValue="30" /><span className="rval" id="midSizeVal">30</span></div>
+                  </div>
+                  <div>
+                    <label className="lbl">Style</label>
+                    <select id="midStyle"><option value="normal" defaultValue>Normal</option><option value="italic">Italic</option></select>
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Alignment</label>
+                  <div className="align-grp" id="midAlignGroup">
+                    <button className="abtn active" data-align="left">Left</button>
+                    <button className="abtn" data-align="center">Center</button>
+                    <button className="abtn" data-align="right">Right</button>
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Color</label>
+                  <div className="color-row" id="midColors">
+                    <div className="cdot" style={{background:'#fff'}} data-color="#ffffff"></div>
+                    <div className="cdot active" style={{background:'#e0e0e0'}} data-color="#e0e0e0"></div>
+                    <div className="cdot" style={{background:'#c9a84c'}} data-color="#c9a84c"></div>
+                    <div className="cdot" style={{background:'#f5c6c6'}} data-color="#f5c6c6"></div>
+                    <div className="cdot" style={{background:'#a8d8ea'}} data-color="#a8d8ea"></div>
+                    <div className="cdot" style={{background:'#b5e8c8'}} data-color="#b5e8c8"></div>
+                    <div className="cdot" style={{background:'#ffeb3b'}} data-color="#ffeb3b"></div>
+                    <div className="cdot" style={{background:'#ff6b6b'}} data-color="#ff6b6b"></div>
+                    <div className="cdot" style={{background:'#000'}} data-color="#000000"></div>
+                    <input type="color" id="midColorCustom" defaultValue="#e0e0e0" title="Custom color" />
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Rotation: <span id="midRotationVal">0</span>°</label>
+                  <input type="range" id="midRotation" min="-30" max="30" defaultValue="0" />
+                </div>
+                <div className="fg">
+                  <label className="lbl">Vertical Position: <span id="midPosVal">58</span>%</label>
+                  <input type="range" id="midPos" min="5" max="90" defaultValue="58" />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* EFFECTS */}
-          <div className="sec">
-            <div className="sec-head"><p className="sec-label">Effects</p></div>
-            <div className="tog-row"><span className="tog-lbl">Horizontal Rule</span><div className="tog on" id="togRule"></div></div>
-            <div className="tog-row"><span className="tog-lbl">Film Grain</span><div className="tog on" id="togGrain"></div></div>
-            <div className="tog-row"><span className="tog-lbl">Vignette</span><div className="tog on" id="togVig"></div></div>
-          </div>
+            {/* SUPPORTING LINE */}
+            <div className="sec">
+              <div className="sec-head">
+                <p className="sec-label">Supporting Line <span className="sec-note">SMALLEST</span></p>
+                <div className="tog on" id="togSub"></div>
+              </div>
+              <div className="text-body" id="subBody">
+                <div className="fg"><input type="text" id="subText" defaultValue="You need to see this." placeholder="Supporting / caption line..." /></div>
+                <div className="fg"><label className="lbl">Font</label><select id="subFont"></select></div>
+                <div className="row2 fg">
+                  <div>
+                    <label className="lbl">Size</label>
+                    <div className="range-row"><input type="range" id="subSize" min="8" max="36" defaultValue="15" /><span className="rval" id="subSizeVal">15</span></div>
+                  </div>
+                  <div>
+                    <label className="lbl">Style</label>
+                    <select id="subStyle"><option value="normal" defaultValue>Normal</option><option value="italic">Italic</option></select>
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Alignment</label>
+                  <div className="align-grp" id="subAlignGroup">
+                    <button className="abtn active" data-align="left">Left</button>
+                    <button className="abtn" data-align="center">Center</button>
+                    <button className="abtn" data-align="right">Right</button>
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Color</label>
+                  <div className="color-row" id="subColors">
+                    <div className="cdot" style={{background:'#fff'}} data-color="#ffffff"></div>
+                    <div className="cdot" style={{background:'#c9a84c'}} data-color="#c9a84c"></div>
+                    <div className="cdot" style={{background:'#aaa'}} data-color="#aaaaaa"></div>
+                    <div className="cdot active" style={{background:'rgba(255,255,255,0.5)',border:'1px solid #444'}} data-color="rgba(255,255,255,0.5)"></div>
+                    <div className="cdot" style={{background:'#f5c6c6'}} data-color="#f5c6c6"></div>
+                    <div className="cdot" style={{background:'#a8d8ea'}} data-color="#a8d8ea"></div>
+                    <div className="cdot" style={{background:'#ffeb3b'}} data-color="#ffeb3b"></div>
+                    <div className="cdot" style={{background:'#ff6b6b'}} data-color="#ff6b6b"></div>
+                    <div className="cdot" style={{background:'#000'}} data-color="#000000"></div>
+                    <input type="color" id="subColorCustom" defaultValue="#ffffff" title="Custom color" />
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">Rotation: <span id="subRotationVal">0</span>°</label>
+                  <input type="range" id="subRotation" min="-30" max="30" defaultValue="0" />
+                </div>
+                <div className="fg">
+                  <label className="lbl">Vertical Position: <span id="subPosVal">68</span>%</label>
+                  <input type="range" id="subPos" min="5" max="90" defaultValue="68" />
+                </div>
+              </div>
+            </div>
 
-          {/* DOWNLOAD */}
-          <div className="sec">
-            <button className="btn-dl" id="dlBtn">⬇ Download 1080 × 1920 PNG</button>
-          </div>
+            {/* BACKGROUND */}
+            <div className="sec">
+              <div className="sec-head"><p className="sec-label">Background</p></div>
+              <label className="lbl">Gradient Preset <span style={{color:'#333',fontSize:'0.56rem'}}>(sets glow accent)</span></label>
+              <div className="swatches" id="bgSwatches">
+                <div className="swatch active" data-bg="0" style={{background:'linear-gradient(160deg,#0a0a0a,#1a1200,#0d0d0d)'}}></div>
+                <div className="swatch" data-bg="1" style={{background:'linear-gradient(160deg,#0d0620,#1e0a3c,#080415)'}}></div>
+                <div className="swatch" data-bg="2" style={{background:'linear-gradient(160deg,#001a14,#003828,#000e0a)'}}></div>
+                <div className="swatch" data-bg="3" style={{background:'linear-gradient(160deg,#1a0000,#3d0808,#0d0000)'}}></div>
+                <div className="swatch" data-bg="4" style={{background:'linear-gradient(160deg,#0d0d1a,#1a1a3d,#080812)'}}></div>
+                <div className="swatch" data-bg="5" style={{background:'linear-gradient(160deg,#1a100a,#3d2005,#120a00)'}}></div>
+                <div className="swatch" data-bg="6" style={{background:'linear-gradient(160deg,#111,#2a2a2a)'}}></div>
+                <div className="swatch" data-bg="7" style={{background:'linear-gradient(160deg,#050518,#0a0a30,#030310)'}}></div>
+              </div>
+              <label className="lbl" style={{marginTop:'0.65rem'}}>Photo Backgrounds <span style={{color:'#333',fontSize:'0.56rem'}}>(click to toggle)</span></label>
+              <div className="bg-photos" id="bgPhotos"></div>
+              <label className="upload-btn" htmlFor="uploadBg">＋ Upload Your Own Image</label>
+              <input type="file" id="uploadBg" accept="image/*" style={{display:'none'}} />
+              <div className="fg blur-row" id="bgBlurRow">
+                <label className="lbl">Background Blur: <span id="bgBlurVal">0</span>px</label>
+                <input type="range" id="bgBlurSlider" min="0" max="30" defaultValue="0" />
+              </div>
+              <div className="fg" style={{marginTop:'0.65rem'}}>
+                <label className="lbl">Accent Glow Intensity</label>
+                <div className="range-row">
+                  <input type="range" id="glowSlider" min="0" max="100" defaultValue="60" />
+                  <span className="rval" id="glowVal">60</span>
+                </div>
+              </div>
+            </div>
 
-        </div>
-      </main>
+            {/* EFFECTS */}
+            <div className="sec">
+              <div className="sec-head"><p className="sec-label">Effects</p></div>
+              <div className="tog-row"><span className="tog-lbl">Horizontal Rule</span><div className="tog on" id="togRule"></div></div>
+              <div className="tog-row"><span className="tog-lbl">Film Grain</span><div className="tog on" id="togGrain"></div></div>
+              <div className="tog-row"><span className="tog-lbl">Vignette</span><div className="tog on" id="togVig"></div></div>
+            </div>
+
+            {/* DOWNLOAD */}
+            <div className="sec">
+              <button className="btn-dl" id="dlBtn">⬇ Download 1080 × 1920 PNG</button>
+            </div>
+
+          </div>{/* end .controls */}
+        </div>{/* end .studio-body */}
+      </div>{/* end .app-shell */}
     </>
   );
 }
