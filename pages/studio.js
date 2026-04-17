@@ -403,7 +403,7 @@ export default function Studio() {
         cx.beginPath(); cx.moveTo(32*s,ry); cx.lineTo(cw-32*s,ry); cx.stroke();
         cx.font=`500 ${12*s}px 'Inter',sans-serif`; cx.letterSpacing=`${3*s}px`;
         cx.fillStyle=state.handleColor; cx.textAlign='center'; cx.textBaseline='middle';
-        cx.fillText(state.handle.toUpperCase(),cw/2,ch-52*s); cx.letterSpacing='0px';
+        cx.fillText(state.handle,cw/2,ch-52*s); cx.letterSpacing='0px';
       }
       cx.textBaseline='alphabetic'; cx.textAlign='left';
     }
