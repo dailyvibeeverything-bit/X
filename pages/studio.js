@@ -155,7 +155,7 @@ export default function Studio() {
     ];
 
     const state = {
-      handle:'@jimoDemo', handleColor:'#c9a84c',
+      handle:'@TheBrainTape', handleColor:'#c9a84c',
       hookEnabled:true, hook:'This changes everything.',
       hookFont:"'Playfair Display'", hookSize:88, hookStyle:'italic',
       hookColor:'#ffffff', hookAlign:'left', hookPos:40,
@@ -1110,7 +1110,7 @@ export default function Studio() {
             {/* HANDLE */}
             <div className="sec">
               <div className="sec-head"><p className="sec-label">Handle</p></div>
-              <input type="text" id="handleText" defaultValue="@jimoDemo" placeholder="@yourhandle" />
+              <input type="text" id="handleText" defaultValue="@TheBrainTape" placeholder="@yourhandle" />
               <div className="fg">
                 <label className="lbl">Color</label>
                 <div className="color-row" id="handleColors">
