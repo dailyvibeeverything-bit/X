@@ -386,7 +386,7 @@ export default function Studio() {
       cx.beginPath(); cx.moveTo(32*s,52*s); cx.lineTo(cw-32*s,52*s); cx.stroke();
       cx.font=`400 ${11*s}px 'Inter',sans-serif`; cx.letterSpacing=`${2.5*s}px`;
       cx.fillStyle=state.handleColor; cx.textAlign='left'; cx.textBaseline='middle';
-      cx.fillText(state.handle.toUpperCase(),32*s,38*s); cx.letterSpacing='0px';
+      cx.fillText(state.handle,32*s,38*s); cx.letterSpacing='0px';
       const glowCol = `rgba(${ar},${ag},${ab},1)`;
       if (state.hookEnabled && state.hook)
         drawBlock(cx,cw,ch,s,state.hook,state.hookFont,state.hookSize,state.hookStyle,state.hookColor,state.hookAlign,state.hookPos,glowCol,glow*.75,state.hookOpacity,state.hookRotation,state.hookCurve,state.hookCurveRad,state.hookX,state.hookY);
