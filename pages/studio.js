@@ -2,6 +2,107 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
+// ─── BEST TIMES WIDGET ───────────────────────────────────────────────────────
+function BestTimesWidget() {
+  const BEST_TIMES = [
+    { day: 'Sun', hours: [8, 14, 18] },
+    { day: 'Mon', hours: [7, 11, 15] },
+    { day: 'Tue', hours: [6, 10, 14] },
+    { day: 'Wed', hours: [7, 11, 16] },
+    { day: 'Thu', hours: [8, 12, 17] },
+    { day: 'Fri', hours: [7, 11, 13] },
+    { day: 'Sat', hours: [9, 12, 17] },
+  ];
+
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const todayIdx = now.getDay();
+  const curH = now.getHours() + now.getMinutes() / 60;
+
+  function fmt(h) {
+    return `${h % 12 || 12}${h >= 12 ? 'PM' : 'AM'}`;
+  }
+
+  // Find the very next best slot across days
+  let nextSlot = null;
+  for (let d = 0; d < 7; d++) {
+    const di = (todayIdx + d) % 7;
+    const upcoming = BEST_TIMES[di].hours.filter(h => d > 0 || h > curH);
+    if (upcoming.length) { nextSlot = { dayIdx: di, hour: upcoming[0] }; break; }
+  }
+
+  function countdown(dayIdx, hour) {
+    const target = new Date(now);
+    const daysAhead = (dayIdx - todayIdx + 7) % 7;
+    target.setDate(target.getDate() + daysAhead);
+    target.setHours(hour, 0, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 7);
+    const diff = target - now;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+    if (h === 0) return `${m}m`;
+    return `${h}h ${m}m`;
+  }
+
+  const isNext     = (di, h) => nextSlot && nextSlot.dayIdx === di && nextSlot.hour === h;
+  const isUpcoming = (di, h) => di === todayIdx && h > curH;
+  const isPast     = (di, h) => di === todayIdx && h <= curH;
+
+  const nextLabel = nextSlot
+    ? (nextSlot.dayIdx === todayIdx ? '' : BEST_TIMES[nextSlot.dayIdx].day + ' ') +
+      fmt(nextSlot.hour) + ' · in ' + countdown(nextSlot.dayIdx, nextSlot.hour)
+    : null;
+
+  return (
+    <div className="best-times-wrap">
+      {/* Header row */}
+      <div className="bt-header">
+        <span className="bt-title">📅 Best Times · Instagram Reels</span>
+        {nextLabel && (
+          <span className="bt-next">
+            <span className="bt-next-pin">▶</span> {nextLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Day columns */}
+      <div className="bt-grid">
+        {BEST_TIMES.map((dayObj, di) => (
+          <div key={di} className={`bt-col${di === todayIdx ? ' bt-today' : ''}`}>
+            <span className="bt-day-name">{dayObj.day}</span>
+            {dayObj.hours.map(h => {
+              const next     = isNext(di, h);
+              const upcoming = isUpcoming(di, h);
+              const past     = isPast(di, h);
+              let cls = 'bt-slot';
+              if (next)     cls += ' bt-slot-next';
+              else if (upcoming) cls += ' bt-slot-upcoming';
+              else if (past)     cls += ' bt-slot-past';
+              else if (di !== todayIdx) cls += ' bt-slot-other';
+              return (
+                <div key={h} className={cls} title={next ? `Next best time · in ${countdown(di, h)}` : ''}>
+                  {fmt(h)}
+                  {next && <span className="bt-pulse" />}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <p className="bt-footnote">Avg engagement data · Local timezone</p>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function Studio() {
   const router = useRouter();
   const initialized = useRef(false);
@@ -719,7 +820,7 @@ export default function Studio() {
           display: grid;
           grid-template-columns: 1fr 390px;
           flex: 1;
-          min-height: 0;       /* critical — lets grid shrink inside flex */
+          min-height: 0;
           overflow: hidden;
         }
 
@@ -732,7 +833,7 @@ export default function Studio() {
           gap: 0.5rem;
           padding: 1rem 1.25rem;
           background: #060606;
-          overflow: hidden;   /* never let canvas bleed */
+          overflow: hidden;
           position: relative;
           min-width: 0;
         }
@@ -754,7 +855,6 @@ export default function Studio() {
           text-transform: uppercase; position: relative; z-index: 1;
         }
 
-        /* Canvas wrapper — drives sizing */
         .canvas-wrap {
           position: relative;
           z-index: 1;
@@ -763,8 +863,7 @@ export default function Studio() {
           box-shadow: 0 0 0 1px var(--border), 0 24px 60px rgba(0,0,0,.85), 0 0 48px rgba(201,168,76,.05);
           animation: floatIn .5s cubic-bezier(.16,1,.3,1) both;
           user-select: none;
-          /* Key: let height drive everything, width follows 9:16 ratio */
-          height: min(calc(100vh - var(--header-h) - 96px), 640px);
+          height: min(calc(100vh - var(--header-h) - 200px), 580px);
           aspect-ratio: 405 / 720;
           flex-shrink: 0;
         }
@@ -805,13 +904,89 @@ export default function Studio() {
         .preview-dims { font-size: 0.54rem; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
         .preview-hint { font-size: 0.48rem; color: #2e2e2e; letter-spacing: 0.04em; text-align: center; }
 
-        /* ── RIGHT: CONTROLS (always scrollable) ── */
+        /* ── BEST TIMES WIDGET ── */
+        .best-times-wrap {
+          position: relative; z-index: 1;
+          width: 100%;
+          max-width: 360px;
+          background: rgba(13,13,13,0.95);
+          border: 1px solid rgba(201,168,76,0.18);
+          border-radius: 10px;
+          padding: 0.6rem 0.75rem 0.5rem;
+          backdrop-filter: blur(8px);
+          flex-shrink: 0;
+        }
+        .bt-header {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 0.5rem; gap: 0.5rem; flex-wrap: wrap;
+        }
+        .bt-title {
+          font-size: 0.5rem; letter-spacing: 0.16em; color: #555;
+          text-transform: uppercase; font-weight: 600; white-space: nowrap;
+        }
+        .bt-next {
+          font-size: 0.55rem; color: var(--accent); font-weight: 700;
+          letter-spacing: 0.04em; white-space: nowrap; display: flex; align-items: center; gap: 3px;
+        }
+        .bt-next-pin {
+          font-size: 0.44rem; opacity: 0.7;
+          animation: btPin 1.8s ease-in-out infinite;
+        }
+        @keyframes btPin { 0%,100%{opacity:.5} 50%{opacity:1} }
+        .bt-grid {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 3px;
+        }
+        .bt-col {
+          display: flex; flex-direction: column; align-items: center; gap: 2px;
+        }
+        .bt-day-name {
+          font-size: 0.42rem; letter-spacing: 0.05em; text-transform: uppercase;
+          color: #3a3a3a; font-weight: 400; margin-bottom: 1px; padding-bottom: 2px;
+          border-bottom: 1px solid transparent; white-space: nowrap;
+        }
+        .bt-col.bt-today .bt-day-name {
+          color: var(--accent); font-weight: 700;
+          border-bottom-color: rgba(201,168,76,0.3);
+        }
+        .bt-slot {
+          width: 100%; padding: 3px 1px; border-radius: 3px;
+          text-align: center; font-size: 0.37rem;
+          letter-spacing: 0.02em; white-space: nowrap;
+          font-weight: 400; transition: all .25s; position: relative;
+          background: #141414; color: #2e2e2e;
+        }
+        .bt-slot-other {
+          background: #111; color: #2a2a2a;
+        }
+        .bt-slot-past {
+          background: rgba(201,168,76,0.03); color: #2a2a2a; opacity: 0.4;
+        }
+        .bt-slot-upcoming {
+          background: rgba(201,168,76,0.12); color: #a07830;
+          border: 1px solid rgba(201,168,76,0.2);
+        }
+        .bt-slot-next {
+          background: var(--accent); color: #000; font-weight: 700;
+          box-shadow: 0 0 8px rgba(201,168,76,0.45);
+          animation: btNext 2.2s ease-in-out infinite;
+        }
+        @keyframes btNext {
+          0%,100% { box-shadow: 0 0 6px rgba(201,168,76,0.4); }
+          50%      { box-shadow: 0 0 14px rgba(201,168,76,0.7); }
+        }
+        .bt-footnote {
+          font-size: 0.38rem; color: #282828; letter-spacing: 0.05em;
+          margin-top: 0.4rem; text-align: center;
+        }
+
+        /* ── RIGHT: CONTROLS ── */
         .controls {
           background: var(--surface);
           border-left: 1px solid var(--border);
           overflow-y: auto;
           overflow-x: hidden;
-          /* Fill the grid row exactly — no shrink, no grow beyond column */
           height: 100%;
           min-height: 0;
           display: flex;
@@ -970,7 +1145,6 @@ export default function Studio() {
             overflow: visible;
           }
 
-          /* Sticky preview at top */
           .preview-area {
             position: sticky;
             top: 0;
@@ -978,7 +1152,7 @@ export default function Studio() {
             background: #060606;
             padding: 0.6rem 0.75rem;
             border-bottom: 1px solid var(--border);
-            flex-direction: row;           /* row: label | canvas | meta */
+            flex-direction: row;
             justify-content: center;
             align-items: center;
             gap: 0.75rem;
@@ -995,7 +1169,9 @@ export default function Studio() {
           .preview-dims { font-size: 0.48rem; }
           .preview-hint { font-size: 0.42rem; color: #2a2a2a; text-align: left; }
 
-          /* Controls: natural scroll with page */
+          /* Hide best times on mobile (not enough space in row layout) */
+          .best-times-wrap { display: none; }
+
           .controls {
             height: auto;
             overflow-y: visible;
@@ -1018,7 +1194,7 @@ export default function Studio() {
         /* ── TABLET (769px – 1100px) ── */
         @media (min-width: 769px) and (max-width: 1100px) {
           .studio-body { grid-template-columns: 1fr 340px; }
-          .canvas-wrap { height: min(calc(100vh - var(--header-h) - 80px), 560px); }
+          .canvas-wrap { height: min(calc(100vh - var(--header-h) - 200px), 500px); }
         }
       `}</style>
 
@@ -1102,6 +1278,9 @@ export default function Studio() {
               <p className="preview-dims">1080 × 1920 px</p>
               <p className="preview-hint">Drag ✥ to move · Dbl-click to reset</p>
             </div>
+
+            {/* ── BEST TIMES WIDGET ── */}
+            <BestTimesWidget />
           </div>
 
           {/* ── CONTROLS (scrollable) ── */}
