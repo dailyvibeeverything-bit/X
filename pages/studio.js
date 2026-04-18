@@ -2,172 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
-// ─── HEADER BEST TIMES (IST) ─────────────────────────────────────────────────
-function HeaderTimes() {
-  const BEST = [
-    [9, 13, 20],  // Sun
-    [7, 11, 19],  // Mon
-    [6, 10, 20],  // Tue
-    [7, 12, 19],  // Wed
-    [8, 12, 18],  // Thu
-    [7, 11, 20],  // Fri
-    [9, 12, 19],  // Sat
-  ];
-  const DAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(t);
-  }, []);
-
-  // IST = UTC+5:30
-  const istMs = now.getTime() + (5 * 60 + 30) * 60000;
-  const ist   = new Date(istMs);
-  const todayIdx = ist.getUTCDay();
-  const tmrIdx   = (todayIdx + 1) % 7;
-  const curH     = ist.getUTCHours() + ist.getUTCMinutes() / 60;
-
-  function fmt(h) {
-    return `${h % 12 || 12}${h >= 12 ? 'PM' : 'AM'}`;
-  }
-
-  // Find next upcoming slot today, if any
-  const nextToday = BEST[todayIdx].find(h => h > curH);
-
-  return (
-    <div className="hdr-times">
-      {[todayIdx, tmrIdx].map((di, i) => {
-        const isToday = i === 0;
-        return (
-          <div key={di} className="hdr-times-day">
-            <span className="hdr-times-label">{isToday ? 'TODAY' : 'TMR'}</span>
-            <span className="hdr-times-name">{DAY[di]}</span>
-            <span className="hdr-times-sep">·</span>
-            {BEST[di].map(h => {
-              const isPast     = isToday && h <= curH;
-              const isNext     = isToday && h === nextToday;
-              return (
-                <span
-                  key={h}
-                  className={
-                    isNext    ? 'hdr-slot hdr-slot-next' :
-                    isPast    ? 'hdr-slot hdr-slot-past' :
-                    isToday   ? 'hdr-slot hdr-slot-upcoming' :
-                                'hdr-slot hdr-slot-tmr'
-                  }
-                >
-                  {fmt(h)}
-                </span>
-              );
-            })}
-          </div>
-        );
-      })}
-      <span className="hdr-times-tz">IST</span>
-    </div>
-  );
-}
-
-// ─── BEST TIMES WIDGET ───────────────────────────────────────────────────────
-function BestTimesWidget() {
-  const BEST_TIMES = [
-    { day: 'Sun', hours: [8, 14, 18] },
-    { day: 'Mon', hours: [7, 11, 15] },
-    { day: 'Tue', hours: [6, 10, 14] },
-    { day: 'Wed', hours: [7, 11, 16] },
-    { day: 'Thu', hours: [8, 12, 17] },
-    { day: 'Fri', hours: [7, 11, 13] },
-    { day: 'Sat', hours: [9, 12, 17] },
-  ];
-
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(t);
-  }, []);
-
-  const todayIdx = now.getDay();
-  const curH = now.getHours() + now.getMinutes() / 60;
-
-  function fmt(h) {
-    return `${h % 12 || 12}${h >= 12 ? 'PM' : 'AM'}`;
-  }
-
-  // Find the very next best slot across days
-  let nextSlot = null;
-  for (let d = 0; d < 7; d++) {
-    const di = (todayIdx + d) % 7;
-    const upcoming = BEST_TIMES[di].hours.filter(h => d > 0 || h > curH);
-    if (upcoming.length) { nextSlot = { dayIdx: di, hour: upcoming[0] }; break; }
-  }
-
-  function countdown(dayIdx, hour) {
-    const target = new Date(now);
-    const daysAhead = (dayIdx - todayIdx + 7) % 7;
-    target.setDate(target.getDate() + daysAhead);
-    target.setHours(hour, 0, 0, 0);
-    if (target <= now) target.setDate(target.getDate() + 7);
-    const diff = target - now;
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
-    if (h === 0) return `${m}m`;
-    return `${h}h ${m}m`;
-  }
-
-  const isNext     = (di, h) => nextSlot && nextSlot.dayIdx === di && nextSlot.hour === h;
-  const isUpcoming = (di, h) => di === todayIdx && h > curH;
-  const isPast     = (di, h) => di === todayIdx && h <= curH;
-
-  const nextLabel = nextSlot
-    ? (nextSlot.dayIdx === todayIdx ? '' : BEST_TIMES[nextSlot.dayIdx].day + ' ') +
-      fmt(nextSlot.hour) + ' · in ' + countdown(nextSlot.dayIdx, nextSlot.hour)
-    : null;
-
-  return (
-    <div className="best-times-wrap">
-      {/* Header row */}
-      <div className="bt-header">
-        <span className="bt-title">📅 Best Times · Instagram Reels</span>
-        {nextLabel && (
-          <span className="bt-next">
-            <span className="bt-next-pin">▶</span> {nextLabel}
-          </span>
-        )}
-      </div>
-
-      {/* Day columns */}
-      <div className="bt-grid">
-        {BEST_TIMES.map((dayObj, di) => (
-          <div key={di} className={`bt-col${di === todayIdx ? ' bt-today' : ''}`}>
-            <span className="bt-day-name">{dayObj.day}</span>
-            {dayObj.hours.map(h => {
-              const next     = isNext(di, h);
-              const upcoming = isUpcoming(di, h);
-              const past     = isPast(di, h);
-              let cls = 'bt-slot';
-              if (next)     cls += ' bt-slot-next';
-              else if (upcoming) cls += ' bt-slot-upcoming';
-              else if (past)     cls += ' bt-slot-past';
-              else if (di !== todayIdx) cls += ' bt-slot-other';
-              return (
-                <div key={h} className={cls} title={next ? `Next best time · in ${countdown(di, h)}` : ''}>
-                  {fmt(h)}
-                  {next && <span className="bt-pulse" />}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      <p className="bt-footnote">Avg engagement data · Local timezone</p>
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Studio() {
@@ -180,6 +14,22 @@ export default function Studio() {
   const [saving, setSaving] = useState(false);
   const [loadingTpls, setLoadingTpls] = useState(false);
   const [tplMsg, setTplMsg] = useState('');
+
+  const BEST_TIMES_IST = [
+    { day: 'Sun', hours: [8, 14, 18] },
+    { day: 'Mon', hours: [7, 11, 15] },
+    { day: 'Tue', hours: [6, 10, 14] },
+    { day: 'Wed', hours: [7, 11, 16] },
+    { day: 'Thu', hours: [8, 12, 17] },
+    { day: 'Fri', hours: [7, 11, 13] },
+    { day: 'Sat', hours: [9, 12, 17] },
+  ];
+  const fmtIstHour = h => `${h % 12 || 12}${h >= 12 ? 'PM' : 'AM'}`;
+  const nowIst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const todayIstIdx = nowIst.getDay();
+  const tomorrowIstIdx = (todayIstIdx + 1) % 7;
+  const todayBest = BEST_TIMES_IST[todayIstIdx].hours.map(fmtIstHour).join(', ');
+  const tomorrowBest = BEST_TIMES_IST[tomorrowIstIdx].hours.map(fmtIstHour).join(', ');
 
   const logout = async () => {
     await fetch('/api/auth', { method: 'DELETE' });
@@ -855,50 +705,27 @@ export default function Studio() {
           flex-shrink: 0;
           z-index: 30;
         }
-        .logo { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 1rem; letter-spacing: 0.08em; color: var(--accent); }
-        .logo span { color: var(--text); }
-        .badge { font-size: 0.58rem; background: var(--accent); color: #000; padding: 2px 8px; border-radius: 20px; font-weight: 700; letter-spacing: 0.12em; }
-
-        /* ── HEADER BEST TIMES ── */
-        .hdr-times {
-          display: flex; align-items: center; gap: 6px;
-          background: rgba(201,168,76,0.06);
-          border: 1px solid rgba(201,168,76,0.14);
-          border-radius: 7px;
-          padding: 4px 10px;
-          flex-shrink: 0;
-        }
-        .hdr-times-day { display: flex; align-items: center; gap: 4px; }
-        .hdr-times-day + .hdr-times-day { border-left: 1px solid #222; padding-left: 6px; }
-        .hdr-times-label {
-          font-size: 0.48rem; letter-spacing: 0.14em; font-weight: 700;
-          color: #444; text-transform: uppercase;
-        }
-        .hdr-times-name {
-          font-size: 0.52rem; letter-spacing: 0.06em; font-weight: 600;
+        .logo {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          font-family: 'Bricolage Grotesque', sans-serif;
+          font-weight: 800;
+          font-size: 1rem;
+          letter-spacing: 0.08em;
           color: var(--accent);
         }
-        .hdr-times-sep { color: #2a2a2a; font-size: 0.5rem; }
-        .hdr-slot {
-          font-size: 0.6rem; font-weight: 600; letter-spacing: 0.03em;
-          padding: 2px 5px; border-radius: 4px; white-space: nowrap;
+        .logo-brand span { color: var(--text); }
+        .logo-meta {
+          font-family: 'Inter', sans-serif;
+          font-size: 0.72rem;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          color: #aaa;
+          text-transform: uppercase;
+          white-space: nowrap;
         }
-        .hdr-slot-next {
-          background: var(--accent); color: #000;
-          animation: hdrPulse 2s ease-in-out infinite;
-        }
-        @keyframes hdrPulse {
-          0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); }
-          50%      { box-shadow: 0 0 0 3px rgba(201,168,76,0.35); }
-        }
-        .hdr-slot-upcoming { color: #c9a84c; background: rgba(201,168,76,0.1); }
-        .hdr-slot-past     { color: #333; background: transparent; }
-        .hdr-slot-tmr      { color: #555; background: transparent; }
-        .hdr-times-tz {
-          font-size: 0.42rem; color: #333; letter-spacing: 0.12em;
-          text-transform: uppercase; font-weight: 600; border-left: 1px solid #222; padding-left: 6px;
-        }
-        @media (max-width: 900px) { .hdr-times { display: none; } }
+        .badge { font-size: 0.58rem; background: var(--accent); color: #000; padding: 2px 8px; border-radius: 20px; font-weight: 700; letter-spacing: 0.12em; }
         .hdr-actions { display: flex; align-items: center; gap: 0.35rem; flex-wrap: nowrap; }
         .undo-btn {
           background: var(--surface2); border: 1px solid var(--border); color: #888;
@@ -1361,8 +1188,10 @@ export default function Studio() {
 
       <div className="app-shell">
         <header>
-          <div className="logo">REEL <span>COVER</span></div>
-          <HeaderTimes />
+          <div className="logo">
+          <span className="logo-brand">REEL <span>COVER</span></span>
+          <span className="logo-meta">Today (IST): {todayBest} · Tomorrow (IST): {tomorrowBest}</span>
+        </div>
           <div className="hdr-actions">
             <button className="undo-btn" id="undoBtn" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
             <button className="undo-btn" id="redoBtn" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
@@ -1388,8 +1217,6 @@ export default function Studio() {
               <p className="preview-hint">Drag ✥ to move · Dbl-click to reset</p>
             </div>
 
-            {/* ── BEST TIMES WIDGET ── */}
-            <BestTimesWidget />
           </div>
 
           {/* ── CONTROLS (scrollable) ── */}
